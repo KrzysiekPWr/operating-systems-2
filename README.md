@@ -46,3 +46,70 @@ Philosopher 4 is eating.
 Philosopher 4 has finished eating.
 Philosopher 4 is thinking.
 ```
+
+---
+---
+
+# Simple Chat Server
+
+A basic console-based chat server implemented in C++ for Operating Systems class. This simplified version provides the core functionality with a single chat room.
+
+## Features
+
+- Multithreaded server (one thread per client)
+- Message synchronization (new clients see message history)
+- Single chat room for all connected clients
+
+## Building
+
+To build the server and client on Windows using MinGW:
+
+```
+mingw32-make
+```
+
+This will create two executables: `server.exe` and `client.exe`.
+
+## Running the Server
+
+To start the server:
+
+```
+server.exe [port]
+```
+
+If no port is specified, the server will use the default port 8080.
+
+## Running the Client
+
+To start the client:
+
+```
+client.exe [server_ip] [port]
+```
+
+If no server IP is specified, it will connect to localhost (127.0.0.1).
+If no port is specified, it will use the default port 8080.
+
+## Client Commands
+
+- `/help` - Display help information
+- `/exit` - Exit the client
+
+Any other text is sent to all connected users.
+
+## How It Works
+
+1. The server creates a new thread for each client connection
+2. Messages are synchronized between clients
+3. All messages are stored in history and sent to new clients
+
+## Next Steps
+
+You can expand this basic chat server by:
+
+1. Re-implementing multiple chat rooms functionality
+2. Adding private messaging between clients
+3. Adding user authentication
+4. Implementing file transfer capability
+5. Adding a graphical user interface 
