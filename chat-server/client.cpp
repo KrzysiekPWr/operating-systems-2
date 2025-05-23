@@ -5,6 +5,24 @@
 #include <mutex>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
+
+
+void enableANSI() {
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD dwMode = 0;
+    if (!GetConsoleMode(hOut, &dwMode)) {
+        std::cerr << "GetConsoleMode failed" << std::endl;
+        return;
+    }
+
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (!SetConsoleMode(hOut, dwMode)) {
+        std::cerr << "SetConsoleMode failed. ANSI escape codes may not work." << std::endl;
+    } else {
+        std::cout << "[ANSI escape codes enabled]\n";
+    }
+}
 
 class ChatClient {
 private:
@@ -40,6 +58,9 @@ private:
                 std::cout << "Server is asking for username." << std::endl;
             } else {
                 std::cout << buffer << std::flush;
+                // printf("\033[u");  
+                std::cout << "\r\x1b[K" << std::flush;
+
             }
         }
     }
@@ -122,6 +143,7 @@ public:
         
         // Now start the normal message loop
         while (running) {
+            fflush(stdout);
             std::getline(std::cin, input);
             
             // Check if client is still running
@@ -161,10 +183,12 @@ void printHelp() {
     std::cout << "Any other text is sent to all connected users." << std::endl;
 }
 
+
 int main(int argc, char* argv[]) {
     std::string server_ip = "127.0.0.1"; // Default to localhost
     int server_port = 8080; // Default port
     
+
     // Parse command line arguments
     if (argc > 1) {
         server_ip = argv[1];
@@ -184,6 +208,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
+    enableANSI(); // Enable ANSI escape codes
     printHelp();
     client.start();
     
