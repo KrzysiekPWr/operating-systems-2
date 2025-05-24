@@ -29,6 +29,7 @@ private:
     std::mutex print_mutex;
 
     std::string input;
+    std::string prompt_message = "Your message: ";
     
     
     void receiveMessages() {
@@ -56,8 +57,14 @@ private:
                 std::cout << "Server is asking for username." << std::endl;
             } else {
                
-                std::cout << buffer << std::flush;
 
+                for(auto c : input + prompt_message) {
+                        std::cout << "\b";
+                } 
+                
+                std::cout << buffer << std::flush;
+                
+                std::cout << prompt_message << input;
             }
         }
     }
@@ -144,9 +151,16 @@ public:
 
             char c = '.';
             while (c != '\r') {
+
+                if ((c == 127 || c == 8)) {
+                    input.pop_back();               
+                    input.pop_back();               
+                    std::cout << " \b" << std::flush;
+                }
+
                 c = _getch();  // get one char immediately while it's not end of input
                 input.push_back(c);
-                std::cout << c;
+                std::cout << c << std::flush;
             }
            
             // Check if client is still running
