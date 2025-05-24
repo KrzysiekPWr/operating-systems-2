@@ -6,23 +6,17 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include <conio.h>
 
 
-void enableANSI() {
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD dwMode = 0;
-    if (!GetConsoleMode(hOut, &dwMode)) {
-        std::cerr << "GetConsoleMode failed" << std::endl;
-        return;
-    }
 
-    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    if (!SetConsoleMode(hOut, dwMode)) {
-        std::cerr << "SetConsoleMode failed. ANSI escape codes may not work." << std::endl;
-    } else {
-        std::cout << "[ANSI escape codes enabled]\n";
-    }
+void printHelp() {
+    std::cout << "Chat Client Commands:" << std::endl;
+    std::cout << "  /help - Show this help" << std::endl;
+    std::cout << "  /exit - Exit the client" << std::endl;
+    std::cout << "Any other text is sent to all connected users." << std::endl;
 }
+
 
 class ChatClient {
 private:
@@ -33,8 +27,12 @@ private:
     std::thread receive_thread;
     std::atomic<bool> running;
     std::mutex print_mutex;
+
+    std::string input;
+    
     
     void receiveMessages() {
+
         char buffer[1024];
         
         while (running) {
@@ -57,9 +55,8 @@ private:
             if (message.find("Enter your username:") != std::string::npos) {
                 std::cout << "Server is asking for username." << std::endl;
             } else {
+               
                 std::cout << buffer << std::flush;
-                // printf("\033[u");  
-                std::cout << "\r\x1b[K" << std::flush;
 
             }
         }
@@ -125,7 +122,6 @@ public:
     }
     
     void start() {
-        std::string input;
         
         // Wait for username prompt
         std::cout << "Waiting for server prompt..." << std::endl;
@@ -134,6 +130,7 @@ public:
         
         // First input will be the username
         std::cout << "Enter your username: ";
+        
         std::getline(std::cin, input);
         username = input;
         
@@ -141,24 +138,32 @@ public:
         input += "\n";
         send(client_socket, input.c_str(), (int)input.length(), 0);
         
+        input.clear();
         // Now start the normal message loop
         while (running) {
-            fflush(stdout);
-            std::getline(std::cin, input);
-            
+
+            char c = '.';
+            while (c != '\r') {
+                c = _getch();  // get one char immediately while it's not end of input
+                input.push_back(c);
+                std::cout << c;
+            }
+           
             // Check if client is still running
             if (!running) {
                 break;
             }
-            
+      
             // Exit command
-            if (input == "/exit") {
+            if (input == "/exit\r") {
+                std::cout << "Exiting chat:(" << std::endl;
                 break;
             }
-            
+
             // Send message to server
             input += "\n";
             send(client_socket, input.c_str(), (int)input.length(), 0);
+            input.clear();
         }
         
         disconnect();
@@ -176,15 +181,10 @@ public:
     }
 };
 
-void printHelp() {
-    std::cout << "Chat Client Commands:" << std::endl;
-    std::cout << "  /help - Show this help" << std::endl;
-    std::cout << "  /exit - Exit the client" << std::endl;
-    std::cout << "Any other text is sent to all connected users." << std::endl;
-}
-
 
 int main(int argc, char* argv[]) {
+
+
     std::string server_ip = "127.0.0.1"; // Default to localhost
     int server_port = 8080; // Default port
     
@@ -208,7 +208,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    enableANSI(); // Enable ANSI escape codes
     printHelp();
     client.start();
     
