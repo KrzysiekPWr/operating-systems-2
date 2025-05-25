@@ -16,6 +16,7 @@
 // Forward declarations
 class Client;
 class ChatRoom;
+class ChatServer;
 
 // Simple message structure
 struct Message {
@@ -30,6 +31,7 @@ struct Message {
 // Client handler class
 class Client {
 private:
+    ChatServer* server;
     SOCKET socket_fd;
     std::string username;
     std::thread client_thread;
@@ -40,7 +42,7 @@ public:
     Client(SOCKET socket, const std::string& name);
     ~Client();
     
-    void start(std::function<void(const std::string&, const std::string&)> message_handler);
+    void start(ChatServer* server, std::function<void(const std::string&, const std::string&)> message_handler);
     void stop();
     bool isRunning() const;
     void sendMessage(const Message& msg);
@@ -72,12 +74,11 @@ private:
     std::map<std::string, std::shared_ptr<Client>> clients;
     std::mutex clients_mutex;
     
-    std::shared_ptr<ChatRoom> chat_room;
     
     void acceptClients();
     void handleClientMessage(const std::string& sender, const std::string& message);
     void broadcastMessage(const Message& msg);
-    
+
 public:
     ChatServer(int server_port);
     ~ChatServer();
@@ -85,4 +86,9 @@ public:
     void start();
     void stop();
     std::string getCurrentTimestamp() const;
+    
+    std::map<int, std::shared_ptr<ChatRoom>> chat_rooms;
+    std::map<std::string, int> clients_chat_rooms_numbers;
+    std::shared_ptr<ChatRoom> get_chat_room_from_username(const std::string& username);
+
 }; 

@@ -14,6 +14,7 @@ void printHelp() {
     std::cout << "Chat Client Commands:" << std::endl;
     std::cout << "  /help - Show this help" << std::endl;
     std::cout << "  /exit - Exit the client" << std::endl;
+    std::cout << "  /chrm <n> - Changes chat room to room with number <n>" << std::endl;
     std::cout << "Any other text is sent to all connected users." << std::endl;
 }
 
@@ -58,7 +59,7 @@ private:
             } else {
                
 
-                for(auto c : input + prompt_message) {
+                for(auto c : prompt_message + input) {
                         std::cout << "\b";
                 } 
                 

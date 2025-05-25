@@ -3,8 +3,9 @@
 #include <iomanip>
 
 // Message implementation
-Message::Message(const std::string& from, const std::string& text) 
-    : sender(from), content(text) {
+Message::Message(const std::string &from, const std::string &text)
+    : sender(from), content(text)
+{
     // Set timestamp
     auto now = std::chrono::system_clock::now();
     auto time = std::chrono::system_clock::to_time_t(now);
@@ -15,25 +16,31 @@ Message::Message(const std::string& from, const std::string& text)
     timestamp = ss.str();
 }
 
-std::string Message::formatMessage() const {
+std::string Message::formatMessage() const
+{
     return "[" + timestamp + "] " + sender + ": " + content;
 }
 
 // Client implementation
-Client::Client(SOCKET socket, const std::string& name) 
-    : socket_fd(socket), username(name), is_running(true) {
+Client::Client(SOCKET socket, const std::string &name)
+    : socket_fd(socket), username(name), is_running(true)
+{
 }
 
-Client::~Client() {
+Client::~Client()
+{
     stop();
-    if (client_thread.joinable()) {
+    if (client_thread.joinable())
+    {
         client_thread.join();
     }
     closesocket(socket_fd);
 }
 
-void Client::start(std::function<void(const std::string&, const std::string&)> message_handler) {
-    client_thread = std::thread([this, message_handler]() {
+void Client::start(ChatServer *server, std::function<void(const std::string &, const std::string &)> message_handler)
+{
+    client_thread = std::thread([this, server, message_handler]()
+                                {
         char buffer[1024];
         
         // Send welcome message
@@ -76,8 +83,50 @@ void Client::start(std::function<void(const std::string&, const std::string&)> m
                     std::string help = "Available commands:\n"
                                      "/help - Show this help\n"
                                      "/exit - Exit the chat\n";
+                                     "/chrm <n>- Changes chat room to room with number <n>\n";
                     send(socket_fd, help.c_str(), (int)help.length(), 0);
-                } 
+                }
+                else if (message.substr(0, 5) == "/chrm")
+                {   
+                     
+                    int chat_room_number = std::stoi(message.substr(6));
+
+                    std::cout << "Changing room to room "<< chat_room_number << std::endl;
+                    std::cout << username << "'s current room " << 
+                        server->clients_chat_rooms_numbers[username] << std::endl;
+                    
+                    auto rooms_it = server->chat_rooms.find(chat_room_number);
+                    if (rooms_it != server->chat_rooms.end())
+                    {
+                        server->clients_chat_rooms_numbers[username] = chat_room_number;
+                    }
+                    else {
+                        std::string chat_room_name = username + "'s Chat Room";
+                        std::cout << "Creating " << chat_room_name << std::endl;
+                        
+                        server->chat_rooms.insert({chat_room_number, std::make_shared<ChatRoom>(chat_room_name)});
+                        server->clients_chat_rooms_numbers[username] = chat_room_number;
+                    }
+                    
+                    std::cout << username << "'s changed room to " << 
+                        server->clients_chat_rooms_numbers[username] << std::endl;
+                    
+                    // Sending room about changing room
+                    Message chrm_msg("Server", "-----------------------\nChanged room to " 
+                        + std::to_string(server->clients_chat_rooms_numbers[username]));
+
+                    sendMessage(chrm_msg);
+
+                    auto history = server->get_chat_room_from_username(username)->getHistory();
+                    for (const auto &msg : history)
+                    {   
+                        if (msg.sender != "Server" || msg.content != username + " has joined the chat")
+                        {
+                            sendMessage(msg);
+                        }
+                    }
+                }
+                
                 else {
                     // Broadcast to all users
                     if (!message.empty()) {
@@ -88,130 +137,150 @@ void Client::start(std::function<void(const std::string&, const std::string&)> m
             
             // Add a small sleep to avoid 100% CPU usage
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-    });
+        } });
 }
 
-void Client::stop() {
+void Client::stop()
+{
     is_running = false;
 }
 
-bool Client::isRunning() const {
+bool Client::isRunning() const
+{
     return is_running;
 }
 
-void Client::sendMessage(const Message& msg) {
+void Client::sendMessage(const Message &msg)
+{
     std::lock_guard<std::mutex> lock(write_mutex);
     std::string formatted = msg.formatMessage() + "\n";
     send(socket_fd, formatted.c_str(), (int)formatted.length(), 0);
 }
 
-std::string Client::getUsername() const {
+std::string Client::getUsername() const
+{
     return username;
 }
 
 // ChatRoom implementation
-ChatRoom::ChatRoom(const std::string& room_name) : name(room_name) {
+ChatRoom::ChatRoom(const std::string &room_name) : name(room_name)
+{
 }
 
-void ChatRoom::addMessage(const Message& msg) {
+void ChatRoom::addMessage(const Message &msg)
+{
     std::lock_guard<std::mutex> lock(history_mutex);
     message_history.push_back(msg);
 }
 
-std::vector<Message> ChatRoom::getHistory() const {
+std::vector<Message> ChatRoom::getHistory() const
+{
     std::lock_guard<std::mutex> lock(history_mutex);
     return message_history;
 }
 
-std::string ChatRoom::getName() const {
+std::string ChatRoom::getName() const
+{
     return name;
 }
 
 // ChatServer implementation
-ChatServer::ChatServer(int server_port) : port(server_port), running(false) {
+ChatServer::ChatServer(int server_port) : port(server_port), running(false)
+{
 }
 
-ChatServer::~ChatServer() {
+ChatServer::~ChatServer()
+{
     stop();
 }
 
-void ChatServer::start() {
+void ChatServer::start()
+{
     // Initialize Winsock
     WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+    {
         std::cerr << "WSAStartup failed" << std::endl;
         return;
     }
-    
+
     // Create socket
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_socket == INVALID_SOCKET) {
+    if (server_socket == INVALID_SOCKET)
+    {
         std::cerr << "Error creating socket: " << WSAGetLastError() << std::endl;
         WSACleanup();
         return;
     }
-    
+
     // Set socket options
     int opt = 1;
-    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt)) < 0) {
+    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0)
+    {
         std::cerr << "Error setting socket options" << std::endl;
         closesocket(server_socket);
         WSACleanup();
         return;
     }
-    
+
     // Bind socket
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(port);
-    
-    if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+
+    if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
         std::cerr << "Error binding socket: " << WSAGetLastError() << std::endl;
         closesocket(server_socket);
         WSACleanup();
         return;
     }
-    
+
     // Listen for connections
-    if (listen(server_socket, 10) < 0) {
+    if (listen(server_socket, 10) < 0)
+    {
         std::cerr << "Error listening: " << WSAGetLastError() << std::endl;
         closesocket(server_socket);
         WSACleanup();
         return;
     }
-    
-    // Create the chat room
-    chat_room = std::make_shared<ChatRoom>("Chat Room");
-    
+
+    // Create the default chat room
+    chat_rooms.insert({0, std::make_shared<ChatRoom>("Chat Room")});
+
     std::cout << "Server is running on port " << port << std::endl;
-    
+
     running = true;
     accept_thread = std::thread(&ChatServer::acceptClients, this);
 }
 
-void ChatServer::stop() {
+void ChatServer::stop()
+{
     running = false;
-    
-    if (accept_thread.joinable()) {
+
+    if (accept_thread.joinable())
+    {
         accept_thread.join();
     }
-    
+
     // Close all client connections
     std::lock_guard<std::mutex> lock(clients_mutex);
-    for (auto& client_pair : clients) {
+    for (auto &client_pair : clients)
+    {
         client_pair.second->stop();
     }
     clients.clear();
-    
+
     closesocket(server_socket);
     WSACleanup();
     std::cout << "Server stopped" << std::endl;
 }
 
-void ChatServer::acceptClients() {
-    while (running) {
+void ChatServer::acceptClients()
+{
+    while (running)
+    {
         // Set up select for accepting connections with timeout
         fd_set readfds;
         struct timeval tv;
@@ -219,107 +288,167 @@ void ChatServer::acceptClients() {
         FD_SET(server_socket, &readfds);
         tv.tv_sec = 1; // 1 second timeout to check running flag
         tv.tv_usec = 0;
-        
-        if (select(0, &readfds, NULL, NULL, &tv) <= 0) {
+
+        if (select(0, &readfds, NULL, NULL, &tv) <= 0)
+        {
             continue; // Timeout or error, check running flag
         }
-        
+
         // Accept connection
         struct sockaddr_in client_addr;
         int client_size = sizeof(client_addr);
         SOCKET client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_size);
-        
-        if (client_socket == INVALID_SOCKET) {
+
+        if (client_socket == INVALID_SOCKET)
+        {
             std::cerr << "Error accepting connection: " << WSAGetLastError() << std::endl;
             continue;
         }
-        
+
         // Get client username
         char buffer[1024];
         std::string prompt = "Enter your username: ";
         std::cout << "Sending username prompt to client..." << std::endl;
         send(client_socket, prompt.c_str(), (int)prompt.length(), 0);
-        
+
         std::cout << "Waiting for client username..." << std::endl;
         int bytes_read = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-        if (bytes_read <= 0) {
+        if (bytes_read <= 0)
+        {
             std::cerr << "Failed to receive username from client" << std::endl;
             closesocket(client_socket);
             continue;
         }
-        
+
         buffer[bytes_read] = '\0';
         std::string username(buffer);
-        
+
         // Remove trailing newline
         size_t pos = username.find_last_not_of("\r\n");
-        if (pos != std::string::npos) {
+        if (pos != std::string::npos)
+        {
             username.erase(pos + 1);
         }
-        
+
         std::cout << "Received username: '" << username << "'" << std::endl;
-        
+
         // Check if username already exists
         std::unique_lock<std::mutex> lock(clients_mutex);
-        if (clients.find(username) != clients.end()) {
+        if (clients.find(username) != clients.end())
+        {
             lock.unlock();
             std::string error = "Username already taken. Connection closed.\n";
             send(client_socket, error.c_str(), (int)error.length(), 0);
             closesocket(client_socket);
             continue;
         }
-        
+
         // Create new client
         std::shared_ptr<Client> client = std::make_shared<Client>(client_socket, username);
         clients[username] = client;
         lock.unlock();
-        
+
         // Start client thread
-        client->start([this](const std::string& sender, const std::string& message) {
-            this->handleClientMessage(sender, message);
-        });
-        
+        client->start(this, [this](const std::string &sender, const std::string &message)
+                      { this->handleClientMessage(sender, message); });
+
         // Send welcome message to all clients
-        Message welcome_msg("Server", username + " has joined the chat");
-        
+        Message welcome_msg("Server", username + " has joined the chat in room 0");
+
+        clients_chat_rooms_numbers.insert({username, 0});
+
         // Add to chat history
+        std::shared_ptr<ChatRoom> chat_room = get_chat_room_from_username(username);
         chat_room->addMessage(welcome_msg);
-        
+
         // Broadcast to all clients
         broadcastMessage(welcome_msg);
-        
+
         // Send chat history to new client
         auto history = chat_room->getHistory();
-        for (const auto& msg : history) {
-            if (msg.sender != "Server" || msg.content != username + " has joined the chat") {
+
+        for (const auto &msg : history)
+        {
+            if (msg.sender != "Server" || msg.content != username + " has joined the chat")
+            {
                 client->sendMessage(msg);
             }
         }
-        
+
         std::cout << "New client connected: " << username << std::endl;
     }
 }
 
-void ChatServer::handleClientMessage(const std::string& sender, const std::string& message) {
+std::shared_ptr<ChatRoom> ChatServer::get_chat_room_from_username(const std::string &username)
+{
+
+    auto clients_it = clients_chat_rooms_numbers.find(username);
+    int chat_room_number = 0;
+    if (clients_it != clients_chat_rooms_numbers.end())
+    {
+        chat_room_number = clients_it->second;
+    }
+    else
+    {
+        std::cerr << "Chat room number" << std::endl;
+    }
+
+    std::shared_ptr<ChatRoom> chat_room;
+    auto rooms_it = chat_rooms.find(chat_room_number);
+    if (rooms_it != chat_rooms.end())
+    {
+        return rooms_it->second;
+    }
+    else
+    {
+        std::cerr << "Not such room" << std::endl;
+        return nullptr;
+    }
+}
+
+void ChatServer::handleClientMessage(const std::string &sender, const std::string &message)
+{
     // Create message
     Message msg(sender, message);
-    
+
     // Add to chat history
+    std::shared_ptr<ChatRoom> chat_room = get_chat_room_from_username(sender);
     chat_room->addMessage(msg);
-    
+
     // Broadcast to all clients
     broadcastMessage(msg);
 }
 
-void ChatServer::broadcastMessage(const Message& msg) {
+//Sending  message to all user in the same room
+void ChatServer::broadcastMessage(const Message &msg)
+{
     std::lock_guard<std::mutex> lock(clients_mutex);
-    
-    for (auto& client_pair : clients) {
-        client_pair.second->sendMessage(msg);
+
+    // Get the sender's room
+    auto it = clients_chat_rooms_numbers.find(msg.sender);
+    if (it == clients_chat_rooms_numbers.end())
+    {
+        std::cerr << "Sender not found in chat room map: " << msg.sender << std::endl;
+        return;
+    }
+
+    int sender_room = it->second;
+
+    for (const auto &client_pair : clients)
+    {
+        const std::string &username = client_pair.first;
+        int user_room = clients_chat_rooms_numbers[username];
+
+        if (user_room == sender_room)
+        {
+            client_pair.second->sendMessage(msg);
+        }
     }
 }
 
-std::string ChatServer::getCurrentTimestamp() const {
+
+std::string ChatServer::getCurrentTimestamp() const
+{
     auto now = std::chrono::system_clock::now();
     auto time = std::chrono::system_clock::to_time_t(now);
     std::tm timeinfo;
@@ -327,4 +456,4 @@ std::string ChatServer::getCurrentTimestamp() const {
     std::stringstream ss;
     ss << std::put_time(&timeinfo, "%H:%M:%S");
     return ss.str();
-} 
+}
