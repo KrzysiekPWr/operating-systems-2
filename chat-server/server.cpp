@@ -82,7 +82,7 @@ void Client::start(ChatServer *server, std::function<void(const std::string &, c
                 if (message.substr(0, 5) == "/help") {
                     std::string help = "Available commands:\n"
                                      "/help - Show this help\n"
-                                     "/exit - Exit the chat\n";
+                                     "/exit - Exit the chat\n"
                                      "/chrm <n>- Changes chat room to room with number <n>\n";
                     send(socket_fd, help.c_str(), (int)help.length(), 0);
                 }

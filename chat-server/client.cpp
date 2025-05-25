@@ -9,16 +9,6 @@
 #include <conio.h>
 
 
-
-void printHelp() {
-    std::cout << "Chat Client Commands:" << std::endl;
-    std::cout << "  /help - Show this help" << std::endl;
-    std::cout << "  /exit - Exit the client" << std::endl;
-    std::cout << "  /chrm <n> - Changes chat room to room with number <n>" << std::endl;
-    std::cout << "Any other text is sent to all connected users." << std::endl;
-}
-
-
 class ChatClient {
 private:
     SOCKET client_socket;
@@ -79,6 +69,14 @@ public:
         disconnect();
     }
     
+    static void printHelp() {
+    std::cout << "Chat Client Commands:" << std::endl;
+    std::cout << "  /help - Show this help" << std::endl;
+    std::cout << "  /exit - Exit the client" << std::endl;
+    std::cout << "  /chrm <n> - Changes chat room to room with number <n>" << std::endl;
+    std::cout << "Any other text is sent to all connected users." << std::endl;
+}
+
     std::string getUsername() const {
         return username;
     }
@@ -153,10 +151,19 @@ public:
             char c = '.';
             while (c != '\r') {
 
-                if ((c == 127 || c == 8)) {
-                    input.pop_back();               
-                    input.pop_back();               
-                    std::cout << " \b" << std::flush;
+                if ((c == 127 || c == 8)) { // Backspace or Delete key
+                    
+                    if (input.empty()) {
+                        continue; 
+                    }
+
+                    input.pop_back(); // Pop the backspace/delete character 'c' itself from the string.
+
+                    if (!input.empty()) { // Check if there's an actual character to remove (the one before the backspace)
+                        input.pop_back(); // Pop the character the user intended to delete.
+                        std::cout << " \b" << std::flush; // Erase it from the screen by printing a space and moving cursor back.
+                    }
+                
                 }
 
                 c = _getch();  // get one char immediately while it's not end of input
@@ -223,9 +230,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    printHelp();
+    ChatClient::printHelp();
     client.start();
     
     std::cout << "Client disconnected" << std::endl;
     return 0;
-} 
+}
