@@ -54,6 +54,48 @@ Philosopher 4 is thinking.
 
 A basic console-based chat server implemented in C++ for Operating Systems class. This simplified version provides the core functionality with a single chat room.
 
+## Shared Resources & Synchronization
+
+### Server-Side (server.cpp, server.h)
+
+#### Shared Resources
+- `ChatServer::clients`: Map of connected clients (accessed by accept thread & client threads).
+- `ChatServer::chat_rooms`: Map of chat rooms (modifiable by client threads).
+- `ChatServer::clients_chat_rooms_numbers`: Maps client to room number.
+- `ChatRoom::message_history`: Vector of messages in a room (accessed concurrently).
+- `Client::socket_fd`: Write operations are protected (to ensure atomic sends).
+
+#### Synchronization Tools
+- `std::mutex`:
+  - `clients_mutex`: Guards `clients`, `chat_rooms`, and `clients_chat_rooms_numbers`.
+  - `ChatRoom::history_mutex`: Guards message history.
+  - `Client::write_mutex`: Protects client socket sending.
+
+#### Threads
+- `accept_thread` (in `start()`):
+  - Accepts new client connections.
+  - Spawns `Client::client_thread` for each client.
+- `Client::client_thread` (per client):
+  - Handles communication from that specific client.
+  - Invokes message handler for chat/broadcasting.
+
+---
+
+### Client-Side (client.cpp)
+#### Threads
+- Main Thread:
+  - Reads user input and sends it to server.
+  - Handles local commands (e.g. /exit).
+- `receive_thread`:
+  - Listens for and displays server messages (uses `print_mutex`).
+
+---
+
+### Summary
+- Shared resources are protected using mutexes and atomic flags.
+- Thread-per-client model allows concurrent message handling.
+- Console and socket output is synchronized to avoid race conditions.
+
 ## Features
 
 - Multithreaded server (one thread per client)
