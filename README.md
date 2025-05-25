@@ -58,15 +58,24 @@ A basic console-based chat server implemented in C++ for Operating Systems class
 
 - Multithreaded server (one thread per client)
 - Message synchronization (new clients see message history)
-- Single chat room for all connected clients
+- Various room with default being chat room number 0. Room can be changed or/and created by client.
 
 ## Building
 
-To build the server and client on Windows using MinGW:
+To build the server and client with g++ use:
+```
+make all
+```
 
+To build the server and client with mingw use:
 ```
-mingw32-make
+make server_mingw
 ```
+and
+```
+make client_mingw
+```
+
 
 This will create two executables: `server.exe` and `client.exe`.
 
@@ -95,8 +104,12 @@ If no port is specified, it will use the default port 8080.
 
 - `/help` - Display help information
 - `/exit` - Exit the client
+- `/chrm <n>` - /chrm <n> - Changes chat room to room with number <n>
 
-Any other text is sent to all connected users.
+
+
+
+Any other text is sent to all connected users in the same room.
 
 ## How It Works
 
@@ -104,12 +117,16 @@ Any other text is sent to all connected users.
 2. Messages are synchronized between clients
 3. All messages are stored in history and sent to new clients
 
+
+## Demo
+https://github.com/user-attachments/assets/7416562f-572c-4dfe-b1ec-0959859dde91
+
+
 ## Next Steps
 
 You can expand this basic chat server by:
 
-1. Re-implementing multiple chat rooms functionality
-2. Adding private messaging between clients
-3. Adding user authentication
-4. Implementing file transfer capability
-5. Adding a graphical user interface 
+1. Adding private messaging between clients
+2. Adding user authentication
+3. Implementing file transfer capability
+4. Adding a graphical user interface 
